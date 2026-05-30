@@ -92,16 +92,16 @@ export default function Login() {
         throw new Error(data.error || "Authentication failed. Please check your credentials.");
       }
 
-      setSuccess("Login successful! Redirecting...");
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("username", data.user.username);
-      localStorage.setItem("email", data.user.email);
-      localStorage.setItem("role", data.user.role);
-      
-      // Delay slightly for smooth transitions
-      setTimeout(() => {
-        router.push("/dashboard");
-      }, 1000);
+      setSuccess("OTP sent to your email.");
+
+localStorage.setItem(
+  "pendingUserId",
+  data.userId
+);
+
+setTimeout(() => {
+  router.push("/otp");
+}, 1000);
 
     } catch (err) {
       setError(err.message);

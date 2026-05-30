@@ -12,6 +12,7 @@ const cors = require('cors'); //allows fe and be to communicate
 const bcrypt = require('bcryptjs'); //for password hashing
 const jwt = require('jsonwebtoken');// used for jwt authentication, jwt- json web token, creates secure login tokens.
 
+const transporter = require("./config/email");
 const connectDB = require("./config/db");
 const User = require("./models/User");
 
@@ -175,22 +176,95 @@ if (!user) {
       return res.status(401).json({ error: 'Invalid email or password.' });
     }
 
-    // Create secure token (JWT) containing id, username, email, password is not included in token for security reasons, we only include non-sensitive user information. The JWT_SECRET is used to sign the token, ensuring that it cannot be tampered with. The expiresIn option sets the token to expire after 1 hour, which adds an extra layer of security by limiting the time window in which a stolen token could be used.
+    
+
+    // Create secure token (JWT) containing id, username, email, password is not included in token for security reasons, we only include non-sensitive user information. The JWT_SECRET is used to sign the token, ensuring that it cannot be tampered with. The expiresIn option sets the token to expire after 1 hour, which adds an extra layer of security by limiting the time window in which a stolen token could be used. okay this is for normal login using token ive commented it, now ive to add 2fa
+    
+
+    //generate otp
+    const otp = Math.floor(
+  100000 + Math.random() * 900000
+).toString();
+
+// Save OTP in MongoDB
+user.otpCode = otp;
+
+user.otpExpires =
+  Date.now() + 5 * 60 * 1000;
+
+await user.save();
+
+// SEND EMAIL HERE
+await transporter.sendMail({
+  from: process.env.EMAIL_USER,
+  to: user.email,
+  subject: "Login OTP",
+  text: `Your OTP is ${otp}`
+});
+
+console.log("EMAIL SENT");
+
+// Return response
+return res.json({
+  message: "OTP sent successfully.",
+  userId: user._id
+});
+
+
+
+  } catch (error) {
+    console.error('Error in login route:', error);
+    return res.status(500).json({ error: 'Internal server error during login.' });
+  }
+});
+
+
+//verify otp route
+app.post('/api/verify-otp', async (req, res) => {
+  try {
+
+    const { userId, otp } = req.body;
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({
+        error: "User not found."
+      });
+    }
+
+    if (user.otpCode !== otp) {
+      return res.status(400).json({
+        error: "Invalid OTP."
+      });
+    }
+
+    if (user.otpExpires < Date.now()) {
+      return res.status(400).json({
+        error: "OTP expired."
+      });
+    }
+
     const token = jwt.sign(
       {
-        id: user.id,
+        id: user._id,
         username: user.username,
         email: user.email,
         role: user.role
       },
-      JWT_SECRET, //security key to sign the token, should be kept secret and not exposed in codebase
-      { expiresIn: '1h' }
+      JWT_SECRET,
+      {
+        expiresIn: "1h"
+      }
     );
 
-    console.log(`[SUCCESS] User logged in: ${user.username}`);
+    user.otpCode = undefined;
+    user.otpExpires = undefined;
+
+    await user.save();
 
     return res.json({
-      message: 'Login successful!',
+      message: "Login successful!",
       token,
       user: {
         username: user.username,
@@ -200,8 +274,11 @@ if (!user) {
     });
 
   } catch (error) {
-    console.error('Error in login route:', error);
-    return res.status(500).json({ error: 'Internal server error during login.' });
+
+    return res.status(500).json({
+      error: "OTP verification failed."
+    });
+
   }
 });
 
