@@ -1,0 +1,26 @@
+{
+  "cookies": [],
+  "origins": [
+    {
+      "origin": "http://localhost:3000",
+      "localStorage": [
+        {
+          "name": "token",
+          "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjZhMWE4YzdkYzE3MTE2MjI1MGQ4MTA1YSIsInVzZXJuYW1lIjoic2hyZXNodGhhIiwiZW1haWwiOiJzaHJlc2h0aGFtb2RpMjQ1MUBnbWFpbC5jb20iLCJyb2xlIjoiYWRtaW4iLCJpYXQiOjE3ODAzOTI2NzYsImV4cCI6MTc4MDM5NjI3Nn0.fUjcW7s1oz42OY2s1-Q-RxRuR_CITm1fbkX1spAqwSY"
+        },
+        {
+          "name": "email",
+          "value": "shreshthamodi2451@gmail.com"
+        },
+        {
+          "name": "role",
+          "value": "admin"
+        },
+        {
+          "name": "username",
+          "value": "shreshtha"
+        }
+      ]
+    }
+  ]
+}
