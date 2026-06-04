@@ -21,7 +21,7 @@ export default function OTPPage() {
         localStorage.getItem("pendingUserId");
 
       const response = await fetch(
-        "http://localhost:5001/api/verify-otp",
+        "http://localhost:5001/api/login/verify-2fa",
         {
           method: "POST",
           headers: {
@@ -38,7 +38,8 @@ export default function OTPPage() {
 
       if (!response.ok) {
         throw new Error(
-          data.error || "OTP verification failed."
+          data.error ||
+          "Verification failed."
         );
       }
 
@@ -49,17 +50,17 @@ export default function OTPPage() {
 
       localStorage.setItem(
         "username",
-        data.user.username
+        data.username
       );
 
       localStorage.setItem(
         "email",
-        data.user.email
+        data.email
       );
 
       localStorage.setItem(
         "role",
-        data.user.role
+        data.role
       );
 
       localStorage.removeItem(
@@ -82,12 +83,12 @@ export default function OTPPage() {
   return (
     <div className="glass-card">
       <h1 className="title">
-        Enter OTP
+        Two-Factor Authentication
       </h1>
 
       <p className="subtitle">
-        Check your email for the
-        6-digit verification code.
+        Open Microsoft Authenticator and enter
+        the 6-digit verification code.
       </p>
 
       {error && (
@@ -99,7 +100,7 @@ export default function OTPPage() {
       <form onSubmit={handleVerify}>
         <div className="form-group">
           <label className="form-label">
-            OTP Code
+            Verification Code
           </label>
 
           <input
@@ -121,7 +122,7 @@ export default function OTPPage() {
         >
           {loading
             ? "Verifying..."
-            : "Verify OTP"}
+            : "Verify Code"}
         </button>
       </form>
     </div>

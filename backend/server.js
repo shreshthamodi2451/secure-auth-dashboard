@@ -12,6 +12,9 @@ const cors = require('cors'); //allows fe and be to communicate
 const bcrypt = require('bcryptjs'); //for password hashing
 const jwt = require('jsonwebtoken');// used for jwt authentication, jwt- json web token, creates secure login tokens.
 
+const speakeasy = require("speakeasy");
+const QRCode = require("qrcode");
+
 const transporter = require("./config/email");
 const connectDB = require("./config/db");
 const User = require("./models/User");
@@ -182,32 +185,65 @@ if (!user) {
     
 
     //generate otp
-    const otp = Math.floor(
-  100000 + Math.random() * 900000
-).toString();
+//     const otp = Math.floor(
+//   100000 + Math.random() * 900000
+// ).toString();
 
-// Save OTP in MongoDB
-user.otpCode = otp;
+// // Save OTP in MongoDB
+// user.otpCode = otp;
 
-user.otpExpires =
-  Date.now() + 5 * 60 * 1000;
+// user.otpExpires =
+//   Date.now() + 5 * 60 * 1000;
 
-await user.save();
+// await user.save();
 
-// SEND EMAIL HERE
-await transporter.sendMail({
-  from: process.env.EMAIL_USER,
-  to: user.email,
-  subject: "Login OTP",
-  text: `Your OTP is ${otp}`
-});
+// // SEND EMAIL HERE
+// await transporter.sendMail({
+//   from: process.env.EMAIL_USER,
+//   to: user.email,
+//   subject: "Login OTP",
+//   text: `Your OTP is ${otp}`
+// });
 
-console.log("EMAIL SENT");
+// console.log("EMAIL SENT");
 
-// Return response
+// // Return response
+// return res.json({
+//   message: "OTP sent successfully.",
+//   userId: user._id
+// });
+
+
+//for 2fa
+// User has 2FA enabled
+if (user.twoFactorEnabled) {
+
+  return res.json({
+    requires2FA: true,
+    userId: user._id
+  });
+
+}
+
+// User does not have 2FA enabled
+const token = jwt.sign(
+  {
+    id: user._id,
+    username: user.username,
+    email: user.email,
+    role: user.role
+  },
+  process.env.JWT_SECRET,
+  {
+    expiresIn: '1h'
+  }
+);
+
 return res.json({
-  message: "OTP sent successfully.",
-  userId: user._id
+  token,
+  username: user.username,
+  email: user.email,
+  role: user.role
 });
 
 
@@ -217,6 +253,162 @@ return res.json({
     return res.status(500).json({ error: 'Internal server error during login.' });
   }
 });
+
+
+
+
+//authenticator route
+app.post("/api/enable-2fa", async (req, res) => {
+  try {
+
+    const { userId } = req.body;
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({
+        error: "User not found"
+      });
+    }
+
+    const secret = speakeasy.generateSecret({
+      name: `SecureAuth (${user.email})`
+    });
+
+    user.twoFactorSecret = secret.base32;
+
+    await user.save();
+
+    const qrCode = await QRCode.toDataURL(
+      secret.otpauth_url
+    );
+
+    return res.json({
+      qrCode
+    });
+
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      error: "Server error"
+    });
+  }
+});
+
+
+
+//verify 2fa
+app.post('/api/verify-2fa', async (req, res) => {
+  try {
+
+    const { userId, otp } = req.body;
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({
+        error: 'User not found'
+      });
+    }
+
+    console.log("User Secret:", user.twoFactorSecret);
+console.log("OTP Received:", otp);
+
+    const verified = speakeasy.totp.verify({
+  secret: user.twoFactorSecret,
+  encoding: 'base32',
+  token: otp,
+  window: 1
+});
+
+    if (!verified) {
+      return res.status(401).json({
+        error: 'Invalid code'
+      });
+    }
+
+    user.twoFactorEnabled = true;
+
+    await user.save();
+
+    return res.json({
+      message: '2FA enabled successfully'
+    });
+
+  } catch (error) {
+
+    console.error(error);
+
+    return res.status(500).json({
+      error: 'Server error'
+    });
+
+  }
+});
+
+
+
+
+//verify to login
+app.post('/api/login/verify-2fa', async (req, res) => {
+  try {
+
+    const { userId, otp } = req.body;
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({
+        error: 'User not found'
+      });
+    }
+
+    const verified = speakeasy.totp.verify({
+      secret: user.twoFactorSecret,
+      encoding: 'base32',
+      token: otp,
+      window: 1
+    });
+
+    if (!verified) {
+      return res.status(401).json({
+        error: 'Invalid code'
+      });
+    }
+
+    const token = jwt.sign(
+      {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        role: user.role
+      },
+      process.env.JWT_SECRET,
+      {
+        expiresIn: '1h'
+      }
+    );
+
+    return res.json({
+      token,
+      username: user.username,
+      email: user.email,
+      role: user.role
+    });
+
+  } catch (error) {
+
+    console.error(error);
+
+    return res.status(500).json({
+      error: 'Server error'
+    });
+
+  }
+});
+
+
 
 
 //verify otp route
@@ -282,6 +474,9 @@ app.post('/api/verify-otp', async (req, res) => {
   }
 });
 
+
+
+
 // Middleware for token validation on protected routes, only authenticated users can access protected apis
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
@@ -303,6 +498,9 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
+
+
+
 const requireAdmin= (req, res, next) => {
   if(req.user.role != "admin")
   {
@@ -312,6 +510,9 @@ const requireAdmin= (req, res, next) => {
   }
   next();
 };
+
+
+
 
 // 3. PROTECTED ME ROUTE api/me protected authenticated user route, get/ backenend health check
 app.get('/api/me', authenticateToken, (req, res) => {
@@ -324,7 +525,7 @@ app.get('/api/me', authenticateToken, (req, res) => {
 });
 });
 
-
+//UISNG DB NOW THIS WAS FOR MEMORY ARRAY
 // app.get(
 //   "/api/users",
 //   authenticateToken,

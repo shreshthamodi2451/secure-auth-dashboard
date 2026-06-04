@@ -24,13 +24,23 @@ const userSchema = new mongoose.Schema({
     default: "user"
   },
 
-  otpCode: {
-    type: String
-  },
+  // otpCode: {
+  //   type: String
+  // },
 
-  otpExpires: {
-    type: Date
-  }
+  // otpExpires: {
+  //   type: Date
+  // }
+
+  twoFactorEnabled: {
+    type: Boolean,
+    default: false
+},
+
+twoFactorSecret: {
+    type: String,
+    default: null
+}
 
 
 }, {
