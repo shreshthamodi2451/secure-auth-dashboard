@@ -225,6 +225,11 @@ if (user.twoFactorEnabled) {
 
 }
 
+return res.json({
+  requiresSetup2FA: true,
+  userId: user._id
+});
+
 // User does not have 2FA enabled
 const token = jwt.sign(
   {
@@ -239,8 +244,15 @@ const token = jwt.sign(
   }
 );
 
+console.log({
+  email: user.email,
+  twoFactorEnabled: user.twoFactorEnabled,
+  secret: user.twoFactorSecret
+});
+
 return res.json({
   token,
+  userId: user._id,
   username: user.username,
   email: user.email,
   role: user.role
@@ -256,14 +268,25 @@ return res.json({
 
 
 
-
-//authenticator route
+//authenticator
 app.post("/api/enable-2fa", async (req, res) => {
   try {
 
+    console.log("========== ENABLE 2FA ==========");
+
     const { userId } = req.body;
 
+    console.log("Received userId:", userId);
+
+    if (!userId) {
+      return res.status(400).json({
+        error: "User ID is required"
+      });
+    }
+
     const user = await User.findById(userId);
+
+    console.log("Found user:", user?.email);
 
     if (!user) {
       return res.status(404).json({
@@ -275,27 +298,38 @@ app.post("/api/enable-2fa", async (req, res) => {
       name: `SecureAuth (${user.email})`
     });
 
+    console.log("Generated secret");
+
     user.twoFactorSecret = secret.base32;
 
     await user.save();
+
+    console.log("Secret saved to database");
 
     const qrCode = await QRCode.toDataURL(
       secret.otpauth_url
     );
 
-    return res.json({
+    console.log("QR generated successfully");
+
+    return res.status(200).json({
+      success: true,
       qrCode
     });
 
   } catch (error) {
-    console.error(error);
+
+    console.error(
+      "Enable 2FA Error:",
+      error
+    );
 
     return res.status(500).json({
       error: "Server error"
     });
+
   }
 });
-
 
 
 //verify 2fa

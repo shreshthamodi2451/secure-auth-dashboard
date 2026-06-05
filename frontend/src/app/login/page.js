@@ -92,23 +92,55 @@ export default function Login() {
         throw new Error(data.error || "Authentication failed. Please check your credentials.");
       }
 
-      setSuccess("OTP sent to your email.");
+//       setSuccess("OTP sent to your email.");
 
-localStorage.setItem(
-  "pendingUserId",
-  data.userId
-);
+// localStorage.setItem(
+//   "pendingUserId",
+//   data.userId
+// );
 
-setTimeout(() => {
+// setTimeout(() => {
+//   router.push("/otp");
+// }, 1000);
+
+
+// User has 2FA enabled
+// User already has 2FA enabled
+if (data.requires2FA) {
+
+  localStorage.setItem(
+    "pendingUserId",
+    data.userId
+  );
+
   router.push("/otp");
-}, 1000);
+  return;
+}
 
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+// User does not have 2FA enabled yet
+if (data.requiresSetup2FA) {
+
+  localStorage.setItem(
+    "pendingUserId",
+    data.userId
+  );
+
+  localStorage.setItem(
+    "userId",
+    data.userId
+  );
+
+  router.push("/setup-2fa");
+  return;
+}
+} catch (err) {
+  setError(err.message);
+} finally {
+  setLoading(false);
+}
+};
+
+
 
   return (
     <div className="glass-card">
