@@ -113,33 +113,104 @@ if (usernameExists) {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt); //converts pw to secured hash, which is what we will store in our data store instead of the plain text password. When a user tries to log in later, we will hash the password they provide and compare it to the stored hash to verify their credentials without ever exposing the original password.
 
-    // Create and save user
-    const newUser = {
-      id: Date.now().toString(), //temp uid using timestamp
-      username: username.trim(),
-      email: email.trim(),
-      password: hashedPassword,
-      role: role || "user",
-      createdAt: new Date()
-    };
 
-    await User.create(newUser);
+    //email verification otp generation
+    const otp = Math.floor(
+  100000 + Math.random() * 900000
+).toString();
+
+    // Create and save user, ID NOT REQ AS MONGODB ALREADY CREATES ID
+    const newUser = {
+  username: username.trim(),
+  email: email.trim(),
+  password: hashedPassword,
+  role: role || "user",
+
+  isVerified: false,
+
+  emailOTP: otp,
+
+  emailOTPExpires:
+    Date.now() + 10 * 60 * 1000
+};
+
+    const user = await User.create(
+  newUser
+);
+
+await transporter.sendMail({
+  from: process.env.EMAIL_USER,
+  to: user.email,
+  subject: "Email Verification",
+  text: `Your verification code is ${otp}`
+});
+console.log("works")
+
     console.log(`[SUCCESS] User registered: ${newUser.username} (${newUser.email})`);
 
     return res.status(201).json({
-      message: 'Registration successful! You can now log in.',
-      user: {
-        id: newUser.id,
-        username: newUser.username,
-        email: newUser.email
-      }
-    });
+  message: "Verification code sent.",
+  userId: user._id
+});
 
   } catch (error) {
     console.error('Error in registration route:', error);
     return res.status(500).json({ error: 'Internal server error during registration.' });
   }
 });
+
+
+
+//VERIFY EMAIL
+app.post('/api/verify-email', async (req, res) => {
+  try {
+
+    const { userId, otp } = req.body;
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({
+        error: 'User not found'
+      });
+    }
+
+    if (user.emailOTP !== otp) {
+      return res.status(400).json({
+        error: 'Invalid OTP'
+      });
+    }
+
+    if (user.emailOTPExpires < Date.now()) {
+      return res.status(400).json({
+        error: 'OTP expired'
+      });
+    }
+
+    user.isVerified = true;
+    user.emailOTP = null;
+    user.emailOTPExpires = null;
+
+    await user.save();
+
+    return res.json({
+      message: 'Email verified successfully'
+    });
+
+  } catch (error) {
+
+    console.error(error);
+
+    return res.status(500).json({
+      error: 'Verification failed'
+    });
+
+  }
+});
+
+
+
+
 
 // 2. LOGIN ROUTE
 // Frontend Login Form
@@ -170,6 +241,12 @@ app.post('/api/login', async (req, res) => {
 if (!user) {
   return res.status(401).json({
     error: "Invalid email or password."
+  });
+}
+
+if (!user.isVerified) {
+  return res.status(401).json({
+    error: "Please verify your email first."
   });
 }
 
@@ -220,7 +297,10 @@ if (user.twoFactorEnabled) {
 
   return res.json({
     requires2FA: true,
-    userId: user._id
+    method:
+      user.twoFactorMethod,
+    userId:
+      user._id
   });
 
 }
@@ -264,6 +344,183 @@ return res.json({
     console.error('Error in login route:', error);
     return res.status(500).json({ error: 'Internal server error during login.' });
   }
+});
+
+
+
+// Set 2FA Method
+app.post(
+  "/api/set-2fa-method",
+  async (req, res) => {
+
+    try {
+
+      const {
+        userId,
+        method
+      } = req.body;
+
+      const user =
+        await User.findById(userId);
+
+      if (!user) {
+        return res.status(404).json({
+          error: "User not found"
+        });
+      }
+
+      if (
+        method !== "email" &&
+        method !== "authenticator"
+      ) {
+        return res.status(400).json({
+          error: "Invalid 2FA method"
+        });
+      }
+
+      user.twoFactorMethod =
+        method;
+
+      user.twoFactorEnabled =
+        true;
+
+      await user.save();
+
+      return res.json({
+        success: true,
+        method: user.twoFactorMethod
+      });
+
+    } catch (error) {
+
+      console.error(
+        "Set 2FA Method Error:",
+        error
+      );
+
+      return res.status(500).json({
+        error: "Server error"
+      });
+
+    }
+
+  }
+);
+
+
+//send login otp route
+app.post('/api/send-login-otp', async (req, res) => {
+
+  try {
+
+    const { userId } = req.body;
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({
+        error: 'User not found'
+      });
+    }
+
+    const otp = Math.floor(
+      100000 + Math.random() * 900000
+    ).toString();
+
+    user.loginOTP = otp;
+
+    user.loginOTPExpires =
+      Date.now() + 5 * 60 * 1000;
+
+    await user.save();
+
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: user.email,
+      subject: 'Login OTP',
+      text: `Your OTP is ${otp}`
+    });
+
+    return res.json({
+      message: 'OTP sent'
+    });
+
+  } catch (error) {
+
+    console.error(error);
+
+    return res.status(500).json({
+      error: 'Failed to send OTP'
+    });
+
+  }
+
+});
+
+
+
+//verify login otp
+app.post('/api/verify-login-otp', async (req, res) => {
+
+  try {
+
+    const { userId, otp } = req.body;
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({
+        error: 'User not found'
+      });
+    }
+
+    if (user.loginOTP !== otp) {
+      return res.status(400).json({
+        error: 'Invalid OTP'
+      });
+    }
+
+    if (user.loginOTPExpires < Date.now()) {
+      return res.status(400).json({
+        error: 'OTP expired'
+      });
+    }
+
+    const token = jwt.sign(
+      {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        role: user.role
+      },
+      process.env.JWT_SECRET,
+      {
+        expiresIn: '1h'
+      }
+    );
+
+    user.loginOTP = null;
+    user.loginOTPExpires = null;
+
+    await user.save();
+
+    return res.json({
+      token,
+      username: user.username,
+      email: user.email,
+      role: user.role
+    });
+
+  } catch (error) {
+
+    console.error(error);
+
+    return res.status(500).json({
+      error: 'Verification failed'
+    });
+
+  }
+
 });
 
 

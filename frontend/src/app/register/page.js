@@ -94,16 +94,24 @@ export default function Register() {
 
       const data = await response.json();
 
+      console.log("Register Response:", data);
+
       if (!response.ok) {
         throw new Error(data.error || "Registration failed. Please try again.");
       }
 
-      setSuccess("Account registered successfully! Redirecting to login...");
-      
-      // Delay slightly for visual feedback before redirect
-      setTimeout(() => {
-        router.push("/login");
-      }, 1500);
+      localStorage.setItem(
+  "pendingUserId",
+  data.userId
+);
+
+setSuccess(
+  "Verification code sent to your email."
+);
+
+setTimeout(() => {
+  router.push("/verify-email");
+}, 1500);
 
     } catch (err) {
       setError(err.message);

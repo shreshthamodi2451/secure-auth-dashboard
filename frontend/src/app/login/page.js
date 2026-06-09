@@ -113,7 +113,26 @@ if (data.requires2FA) {
     data.userId
   );
 
-  router.push("/otp");
+  // User chooses Email OTP
+  if (
+    data.method === "email"
+  ) {
+
+    router.push(
+      "/email-otp"
+    );
+
+  }
+
+  // User chooses Authenticator
+  else {
+
+    router.push(
+      "/otp"
+    );
+
+  }
+
   return;
 }
 

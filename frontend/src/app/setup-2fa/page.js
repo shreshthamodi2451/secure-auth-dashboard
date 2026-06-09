@@ -10,20 +10,68 @@ export default function Setup2FA() {
     const [otp, setOtp] = useState('');
 const [message, setMessage] = useState('');
 
- const generateQR = async () => {
+const [method, setMethod] =
+  useState("authenticator");
+
+const generateQR = async () => {
+
   try {
 
     const userId =
       localStorage.getItem("userId");
 
-    console.log("UserId:", userId);
+    console.log(
+      "UserId:",
+      userId
+    );
 
+    // User selected Email OTP
+    if (method === "email") {
+
+      const response = await fetch(
+        "http://localhost:5001/api/set-2fa-method",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/json"
+          },
+          body: JSON.stringify({
+            userId,
+            method: "email"
+          })
+        }
+      );
+
+      const data =
+        await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.error ||
+          "Failed to save method"
+        );
+      }
+
+      setMessage(
+  "Email OTP selected successfully!"
+);
+
+setTimeout(() => {
+  router.push("/login");
+}, 1000);
+
+return;
+    }
+
+    // User selected Authenticator App
     const response = await fetch(
       "http://localhost:5001/api/enable-2fa",
       {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type":
+            "application/json"
         },
         body: JSON.stringify({
           userId
@@ -31,26 +79,90 @@ const [message, setMessage] = useState('');
       }
     );
 
-    const data = await response.json();
+    const data =
+      await response.json();
 
-    console.log("Response:", data);
+    console.log(
+      "Response:",
+      data
+    );
 
     if (!response.ok) {
       throw new Error(
-        data.error || "Failed to generate QR"
+        data.error ||
+        "Failed to generate QR"
       );
     }
 
-    setQrCode(data.qrCode);
+    setQrCode(
+      data.qrCode
+    );
 
   } catch (error) {
 
-    console.error(error);
+    console.error(
+      error
+    );
+
+    setMessage(
+      error.message
+    );
 
   }
+
 };
 
+const setupEmailOTP = async () => {
 
+  try {
+
+    const userId =
+      localStorage.getItem("userId");
+
+    const response = await fetch(
+      "http://localhost:5001/api/set-2fa-method",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type":
+            "application/json"
+        },
+        body: JSON.stringify({
+          userId,
+          method: "email"
+        })
+      }
+    );
+
+    const data =
+      await response.json();
+
+    if (!response.ok) {
+
+      throw new Error(
+        data.error
+      );
+
+    }
+
+    localStorage.setItem(
+      "pendingUserId",
+      userId
+    );
+
+    router.push(
+      "/email-otp"
+    );
+
+  } catch (error) {
+
+    setMessage(
+      error.message
+    );
+
+  }
+
+};
 
 const verify2FA = async () => {
 
@@ -119,9 +231,41 @@ const verify2FA = async () => {
   <p>{message}</p>
 )}
 
-      <button onClick={generateQR}>
-        Generate QR Code
-      </button>
+<h3>
+  Choose 2FA Method
+</h3>
+
+<select
+  value={method}
+  onChange={(e) =>
+    setMethod(e.target.value)
+  }
+>
+  <option value="authenticator">
+    Authenticator App
+  </option>
+
+  <option value="email">
+    Email OTP
+  </option>
+</select>
+
+<br />
+<br />
+
+      {method === "authenticator" && (
+  <button onClick={generateQR}>
+    Generate QR Code
+  </button>
+)};
+
+{method === "email" && (
+  <button
+    onClick={setupEmailOTP}
+  >
+    Continue with Email OTP
+  </button>
+)}
 
       {qrCode && (
   <>

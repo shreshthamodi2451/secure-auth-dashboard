@@ -33,13 +33,44 @@ const userSchema = new mongoose.Schema({
   // }
 
   twoFactorEnabled: {
-    type: Boolean,
-    default: false
+  type: Boolean,
+  default: false
+},
+
+ twoFactorMethod: {
+  type: String,
+  enum: ["email", "authenticator"],
+  default: "authenticator"
 },
 
 twoFactorSecret: {
     type: String,
     default: null
+},
+
+loginOTP: {
+  type: String,
+  default: null
+},
+
+loginOTPExpires: {
+  type: Date,
+  default: null
+},
+
+isVerified: {
+  type: Boolean,
+  default: false
+},
+
+emailOTP: {
+  type: String,
+  default: null
+},
+
+emailOTPExpires: {
+  type: Date,
+  default: null
 }
 
 
