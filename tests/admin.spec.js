@@ -6,6 +6,10 @@ test('dashboard requires authentication', async ({ page }) => {
 
   await expect(page).toHaveURL(/login/);
 
+  await page.evaluate(() => {
+  localStorage.clear();
+});
+
   await expect(
     page.getByRole('button', { name: 'Sign In' })
   ).toBeVisible();

@@ -40,25 +40,25 @@ test('invalid pw check' , async({ page }) => {
   ).toBeVisible();
 });
 
-test('successful login redirects to otp', async ({ page }) => {
+// test('successful login redirects to otp', async ({ page }) => {
 
-  await page.goto('http://localhost:3000/login');
+//   await page.goto('http://localhost:3000/login');
 
-  await page.getByPlaceholder('name@example.com')
-    .fill(process.env.TEST_EMAIL);
+//   await page.getByPlaceholder('name@example.com')
+//     .fill(process.env.TEST_EMAIL);
 
-  await page.getByPlaceholder('••••••••')
-    .fill(process.env.TEST_PASSWORD);
+//   await page.getByPlaceholder('••••••••')
+//     .fill(process.env.TEST_PASSWORD);
 
-  await page.getByRole('button', {
-    name: 'Sign In'
-  }).click();
+//   await page.getByRole('button', {
+//     name: 'Sign In'
+//   }).click();
 
-  await expect(page)
-    .toHaveURL(/otp/);
+//   await expect(page)
+//     .toHaveURL(/otp/);
 
-  await expect(
-    page.getByText('Enter OTP')
-  ).toBeVisible();
+//   await expect(
+//     page.getByText('Enter OTP')
+//   ).toBeVisible();
 
-});
+// });

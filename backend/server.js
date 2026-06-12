@@ -920,6 +920,123 @@ app.get('/', (req, res) => {
   });
 });
 
+
+//playwright tests
+app.get(
+  "/api/test/get-email-otp/:email",
+  async (req, res) => {
+
+    try {
+
+      const user =
+        await User.findOne({
+          email:
+            req.params.email
+        });
+
+      if (!user) {
+
+        return res.status(404)
+          .json({
+            error:
+              "User not found"
+          });
+
+      }
+
+      return res.json({
+        emailOTP:
+          user.emailOTP,
+        loginOTP:
+          user.loginOTP
+      });
+
+    } catch (error) {
+
+      console.error(error);
+
+      return res.status(500)
+        .json({
+          error:
+            "Server error"
+        });
+
+    }
+
+  }
+);
+
+
+//create test user
+app.post(
+  "/api/test/create-user",
+  async (req, res) => {
+
+    const {
+      isVerified = true,
+      twoFactorEnabled = false,
+      twoFactorMethod = "authenticator",
+      role = "user"
+    } = req.body;
+
+    await User.deleteOne({
+      email: "playwright@test.com"
+    });
+
+    const hashedPassword =
+      await bcrypt.hash(
+        "Password123",
+        10
+      );
+
+    const user =
+      await User.create({
+        username: "playwright",
+        email: "playwright@test.com",
+        password: hashedPassword,
+        role,
+        isVerified,
+        twoFactorEnabled,
+        twoFactorMethod
+      });
+
+    res.json(user);
+
+  }
+);
+
+
+
+//delete test user
+app.delete(
+  "/api/test/delete-user/:email",
+  async (req, res) => {
+
+    try {
+
+      await User.deleteOne({
+        email:
+          req.params.email
+      });
+
+      return res.json({
+        success: true
+      });
+
+    } catch (error) {
+
+      console.error(error);
+
+      return res.status(500).json({
+        error:
+          "Delete failed"
+      });
+
+    }
+
+  }
+);
+
 app.listen(PORT, () => {
   console.log(`========================================`);
   console.log(`Backend server successfully listening on port ${PORT}`);

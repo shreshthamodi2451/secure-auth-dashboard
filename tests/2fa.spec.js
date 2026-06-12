@@ -1,39 +1,92 @@
 const { test, expect } = require('@playwright/test');
 
-test.describe('2FA Flow', () => {
+test.afterEach(
+  async ({ request }) => {
 
-  test('user without 2fa goes to setup page', async ({ page }) => {
-
-    await page.goto('http://localhost:3000/login');
-
-    await page.fill('#email', 'newuser@gmail.com');
-    await page.fill('#password', 'newuser123');
-
-    await page.click('button[type="submit"]');
-
-    await expect(page).toHaveURL(
-      /setup-2fa/
+    await request.delete(
+      'http://localhost:5001/api/test/delete-user/playwright@test.com'
     );
 
-  });
+  }
+);
 
-});
+test.describe('2FA Flow', () => {
 
+  test(
+    'user without 2fa goes to setup page',
+    async ({ page, request }) => {
 
+      await request.post(
+        'http://localhost:5001/api/test/create-user',
+        {
+          data: {
+            isVerified: true,
+            twoFactorEnabled: false
+          }
+        }
+      );
 
-test('user with 2FA enabled is redirected to OTP page', async ({ page }) => {
+      await page.goto(
+        'http://localhost:3000/login'
+      );
 
-  await page.goto('http://localhost:3000/login');
+      await page.fill(
+        '#email',
+        'playwright@test.com'
+      );
 
-  await page.fill('#email', 'shreshthamodi2451@gmail.com');
-  await page.fill('#password', 'shreshtha2451');
+      await page.fill(
+        '#password',
+        'Password123'
+      );
 
-  await page.click('button[type="submit"]');
+      await page.click(
+        'button[type="submit"]'
+      );
 
-  await expect(page).toHaveURL(
-    /otp/
+      await expect(page)
+        .toHaveURL(/setup-2fa/);
+
+    }
+  );
+
+  test(
+    'user with 2FA enabled is redirected to OTP page',
+    async ({ page, request }) => {
+
+      await request.post(
+        'http://localhost:5001/api/test/create-user',
+        {
+          data: {
+            isVerified: true,
+            twoFactorEnabled: true,
+            twoFactorMethod: 'authenticator'
+          }
+        }
+      );
+
+      await page.goto(
+        'http://localhost:3000/login'
+      );
+
+      await page.fill(
+        '#email',
+        'playwright@test.com'
+      );
+
+      await page.fill(
+        '#password',
+        'Password123'
+      );
+
+      await page.click(
+        'button[type="submit"]'
+      );
+
+      await expect(page)
+        .toHaveURL(/otp/);
+
+    }
   );
 
 });
-
-
